@@ -5,9 +5,10 @@
 #
 # Edited by: 
 #
-# Date Last Modified: 05 May 2018
+# Date Last Modified: 07 May 2018
 #
-# Latest change: Fixed serial parsing and formatting for processing, Added expected ADC mean calculations and some debug trace sections. 
+# Latest change: Completed computation for expected results and evaluation for pass/fail. Data structures and organization needs work. Still need to format final pass fail criteria.
+#                Also need to restructure the loop system for running through iterative tests so that controller commmand is not sent every iteration. 
 #
 # Purpose: A script to validate a devices ability to accurately sample and measure a sine wave input
 #
@@ -171,6 +172,7 @@ class SamplingTest(object):
     # This method perfoms the Sampling Engine test.
     # It opens a serial port to the controller, sends a command to generate a sine wave, verifies the command ran
     # It then opens a serial port to the DUT and reads the returned values.
+    # It calculates the expected DUT values from the input parameters passed to the controller.
     # The returned values are then evaluated against expected results.
     # if the values returned are as expected then the test is a success, if any values fall outside of tolerance then the test is a fail 
     #  @param self The object pointer.
@@ -178,7 +180,7 @@ class SamplingTest(object):
 
         #Local Variables------------------------------------------------------------------------
         #DUT ADC Configuration
-        fGain       = 1/6     #Gain value of the ADC
+        fGain       = 0.17    #Gain value of the ADC = 1/6
         BitRes      = 0.59    #Bit resolution of the DUT ADC in mV = 0.59  
         #Controller DAC Configuration
         fVrefDAC    = 3300    #Voltage reference used in the controller DAC in mV
@@ -190,57 +192,69 @@ class SamplingTest(object):
         fVoltMean   = 0.0     #Represent the mean voltage of the input wave in mV
         fVoltPkMax  = 0.0     #Represent the maximum peak woltage of the input wave in mV
         fVoltPkMin  = 0.0     #Represent the maximum peak woltage of the input wave in mV
+        fDACValSum  = 0       #Summation of DAC values used to calculate the mean
         iADCmean    = 0       #Expected Mean Value for ADC 
-        iADCpeakMax = 0       #Expected Maximum peak Value for ADC 
         iADCpeakMin = 0       #Expected Maximum peak Value for ADC
+        iADCpeakMax = 0       #Expected Maximum peak Value for ADC 
+        #flags
+        TestBegin = True
         
         #-----------------------------------------------------------------------------------------
-         
-        class ADCMeanTolerance(Enum):
-            Max = iADCmean + 20
-            Min = iADCmean - 20
-
-        class ADCpeakMaxTolerance(Enum):
-            Max = iADCpeakMax + 20
-            Min = iADCpeakMax - 20
-
-        class ADCpeakMinTolerance(Enum):
-            Max = iADCpeakMin + 20
-            Min = iADCpeakMin - 20
-
-        #Wait for DUT, It send 2 lines of data, one for each channel
-        #time.sleep(1)
-        received_data = myConnector.ReadSerialPortLineDUT()
-        print "DUT OK"
-        #time.sleep(1)
         
-        #Send the command to the controller and check that the command ran
-        #time.sleep(10)
-        myConnector.SendSerialCON(MESSAGE_PING)
-        myConnector.ReadSerialPortLineCON()
+        #Define Tolerance dictionaries--------
+        ADCMeanLimits = {
+            'Max': iADCmean + 20,
+            'Min': iADCmean - 20
+        }
 
-        #Take an actual reading from the DUT Serial port 
+        ADCMinLimits = {
+            'Max': iADCpeakMin + 20,
+            'Min': iADCpeakMin - 20
+        }
+
+        ADCMaxLimits = {
+            'Max': iADCpeakMax + 20,
+            'Min': iADCpeakMax - 20
+        }
+        #------------------------------------
+
+        #Wait for DUT and then trigger the controller------------------------------------------------- 
+        #It send 2 lines of data, one for each channel---
+        #Only runs on first iteration
+        #time.sleep(1)
+        if TestBegin == True:
+            received_data = myConnector.ReadSerialPortLineDUT()
+            received_data = myConnector.ReadSerialPortLineDUT() #run twice for both incoming lines
+            print "The DUT is Ready"
+            myConnector.SendSerialCON(MESSAGE_PING)
+            myConnector.ReadSerialPortLineCON()            #Check that the command ran
+            TestBegin = False
+        #time.sleep(1)
+        #--------------------------------------------------------------------------------------------
+
+        #Extract readings from the DUT Serial port------------------------------------- 
         #Read DUT data
         print "Wait for DUT result"
         received_data = myConnector.ReadSerialPortLineDUT()
-        Header1,ADC_Channel1,ADC_Average1,ADC_Min1,ADC_Max1=received_data.split(",")
+        Header1,ADC_Channel1,ADC_Mean1,ADC_Min1,ADC_Max1=received_data.split(",")
         ADC_Max1 = ADC_Max1.rstrip()
         #time.sleep(1)
         received_data = myConnector.ReadSerialPortLineDUT()
-        Header2,ADC_Channel2,ADC_Average2,ADC_Min2,ADC_Max2=received_data.split(",")
+        Header2,ADC_Channel2,ADC_Mean2,ADC_Min2,ADC_Max2=received_data.split(",")
         ADC_Max2 = ADC_Max2.rstrip()
         #Debug Trace---------------------------------------------
         #print "Header = " + str(Header1)
         #print "ADC Channel = " + str(ADC_Channel1)
-        #print "ADC Average Count = " + str(ADC_Average1)
+        #print "ADC Average Count = " + str(ADC_Mean1)
         #print "ADC Minimum Count = " + str(ADC_Min1)
         #print "ADC Maximum Count = " + str(ADC_Max1)
         #print "Header = " + str(Header2)
         #print "ADC Channel = " + str(ADC_Channel2)
-        #print "ADC Average Count = " + str(ADC_Average2)
+        #print "ADC Average Count = " + str(ADC_Mean2)
         #print "ADC Minimum Count = " + str(ADC_Min2)
         #print "ADC Maximum Count = " + str(ADC_Max2)
         #-------------------------------------------------------
+        #----------------------------------------------------------------------------
 
         #Convert input fAmp to Comparable ADC Values
 
@@ -251,96 +265,120 @@ class SamplingTest(object):
         
         fDACValMean = fDACValSum/iMaxSamples                #Quotient of the sum of DAC samples in DAC units and the number of samples
         fVoltMean = fDACValMean*fVrefDAC                    #Convert DAC values to voltage in mV  
-        iADCMean  = fVoltMean*fGain/BitRes                  #Convert the mean value in voltage to DUT comparable ADC value
-        iADCMean  = int(iADCMean)                           #Should be an int
+        iADCmean  = fVoltMean*fGain/BitRes                  #Convert the mean value in voltage to DUT comparable ADC value
+        iADCmean  = int(iADCmean)                           #Should be an int
     
         #Debug Trace---------------------------------------------
         print "Average Value from DAC: " + str(fDACValMean)    
         print "Average mV Value from DAC: " + str(fVoltMean) 
-        print "Average Voltage Value from DUT ADC: " + str(iADCMean)
+        print "Average Voltage Value from DUT ADC: " + str(iADCmean)
         #-------------------------------------------------------
 
         #-----------------------------------------------------------------------------------------------------------------------------------
 
-        #Calculate the expected Min ADC Value--------------------------------------------------------------------------------------------------- 
+        #Calculate the expected Min ADC Value---------------------------------------------------------------------------------------------- 
         fDacVal = fAMP*math.sin(75*((2*math.pi)/iMaxSamples)) + fOffsetDC   #The lowest value from the DAC in DAC units
-        fVoltMean = fVoltPkMin*fVrefDAC                                     #Convert DAC values to voltage in mV
-        iADCpeakMin  = fVoltMean*fGain/BitRes                               #Convert the mean value in voltage to DUT comparable ADC value 
+        fVoltPkMin = fDacVal*fVrefDAC                                       #Convert DAC values to voltage in mV 
+        iADCpeakMin  = fVoltPkMin*fGain/BitRes                              #Convert the mean value in voltage to DUT comparable ADC value
+        iADCpeakMin  = int(iADCpeakMin)                                     #Convert to an int  
 
-        #Debug Trace---------------------------------------------
+        #Debug Trace--------------------------------------
         print "Min Value from DAC:   " + str(fDacVal)
-        print "Min Value in mV:      " + str(fVoltMean)
-        print "Min Value in ADC Val: " + str(fVoltMean)
-        #-------------------------------------------------------
-        
-        fDacVal = fAMP*math.sin(iSampleDAC*((2*math.pi)/iMaxSamples)) + fOffsetDC
-        fVoltPkMax = (fAMP*fVrefCON)+(0.43*fVrefCON)    #0.43 is the offset for the sine wave to a midpoint of 1.5V
-        fVoltPkMax = fVoltPeak*1000                     #convert to mV
-        iADCPkMax  = fVoltPk/BitRes                     #Convert to an actual ADC Value
-        #---------------------------------------------------------------------------------------------------------------------------------------
+        print "Min Value in mV:      " + str(fVoltPkMin)
+        print "Min Value in ADC Val: " + str(iADCpeakMin)
+        #-------------------------------------------------
+        #----------------------------------------------------------------------------------------------------------------------------------
 
-        #Calculate the expected Max ADC Value 
-        iADCPkMin  = 5
+        #Calculate the expected Max ADC Value---------------------------------------------------------------------------------------------- 
+        fDacVal = fAMP*math.sin(25*((2*math.pi)/iMaxSamples)) + fOffsetDC   #The highest value from the DAC in DAC units
+        fVoltPkMax = fDacVal*fVrefDAC                                       #Convert DAC values to voltage in mV
+        iADCpeakMax  = fVoltPkMax*fGain/BitRes                               #Convert the mean value in voltage to DUT comparable ADC value
+        iADCpeakMax  = int(iADCpeakMax)                                     #Convert to an int
+  
+        #Debug Trace--------------------------------------
+        print "Max Value from DAC:   " + str(fDacVal)
+        print "Max Value in mV:      " + str(fVoltPkMax)
+        print "Max Value in ADC Val: " + str(iADCpeakMax)
+        #-------------------------------------------------
+        #-----------------------------------------------------------------------------------------------------------------------------------
+
+        #Set the pass/fail tolerances from the expected values---------------------------------
+        #limits for the average ADC Value
+        ADCMeanLimits['Max'] = iADCmean + 20
+        ADCMeanLimits['Min'] = iADCmean - 20
+
+        #limits for the minimum ADC Value
+        ADCMinLimits['Max'] = iADCpeakMin + 20
+        ADCMinLimits['Min'] = iADCpeakMin - 20
+
+        #limits for the maximum ADC Value
+        ADCMaxLimits['Max'] = iADCpeakMax + 20
+        ADCMaxLimits['Min'] = iADCpeakMax - 20
+        #--------------------------------------------------------------------------------------
 
 
-
-
-
-        #Evaluate the values from readings against the expected values
-
-        #Channel 1
-
-        #Check ADC Average
-
+        #Evaluate the values from readings against the expected values-----------
         #Check pass/fail for all 6 parameters
-
-        #Check Pulse counter 1 Pass/Fail
-        if PulseCounter1_Val == NUM_PULSES:
-            passP1 = True
+        #Channel 1
+        #Channel1 Mean
+        if int(ADC_Mean1) <=  ADCMeanLimits['Max'] and int(ADC_Mean1) >= ADCMeanLimits['Min']:
+            passADC1mean = True
+            
         else:
-            passP1 = False
-
-        #Check Pulse counter 2 Pass/Fail
-        if PulseCounter2_Val == NUM_PULSES:
-            passP2 = True
+            passADC1mean = False
+        #Channel1 Min
+        if int(ADC_Min1) <=  ADCMinLimits['Max'] and int(ADC_Min1) >= ADCMinLimits['Min']:
+            passADC1min = True
+            
         else:
-            passP2 = False
-
-        #Check Pulse counter 3 Pass/Fail
-        if PulseCounter3_Val == NUM_PULSES:
-            passP3 = True
+            passADC1min = False
+        #Channel1 Max
+        if int(ADC_Max1) <=  ADCMaxLimits['Max'] and int(ADC_Max1) >= ADCMaxLimits['Min']:
+            passADC1max = True
+            
         else:
-            passP3 = False
+            passADC1max = False
+        #Channel 2
+        #Channel2 Mean
+        if int(ADC_Mean2) <=  ADCMeanLimits['Max'] and int(ADC_Mean2) >= ADCMeanLimits['Min']:
+            passADC2mean = True
+            
+        else:
+            passADC2mean = False
+        #Channel2 Min
+        if int(ADC_Min2) <=  ADCMinLimits['Max'] and int(ADC_Min2) >= ADCMinLimits['Min']:
+            passADC2min = True
+            
+        else:
+            passADC2min = False
+        #Channel2 Max
+        if int(ADC_Max2) <=  ADCMaxLimits['Max'] and int(ADC_Max2) >= ADCMaxLimits['Min']:
+            passADC2max = True
+            
+        else:
+            passADC2max = False
 
-        pulseCounterResults = [passP1,passP2,passP3]
+        
+        #Debug Trace--------------------------------------
+        print "Channel 1 mean value pass state: " + str(passADC1mean)
+        print "Channel 1 min value pass state:  " + str(passADC1min)
+        print "Channel 1 max value pass state:  " + str(passADC1max)
+        print "Channel 2 mean value pass state: " + str(passADC2mean)
+        print "Channel 2 min value pass state:  " + str(passADC2min)
+        print "Channel 2 max value pass state:  " + str(passADC2max)
+        #-------------------------------------------------
+        #------------------------------------------------------------------------
+
+
+
+        pulseCounterResults = [passADC1mean,passADC1min,passADC1max,passADC2mean,passADC2min,passADC2max]
         #print pulseCounterResults
-
-        return pulseCounterResults
-
+        
         #Return the results
-
+        return pulseCounterResults
 
         myConnector.CloseSerialPortCON()
         myConnector.CloseSerialPortDUT()
-
-        bPingTest = False
-        if received_data == MESSAGE_PING:
-            bPingTest = True
-        else:
-            print "Serial Port: Failed to Read"
-
-        myModem.SendSerial(MESSAGE_PONG, False)
-        time.sleep(1)
-        data = myModem.ReadTcpPorttLine()
-
-        bPongTest = False
-        if data == MESSAGE_PONG:
-            bPongTest = True
-
-        if bPingTest == True and bPongTest == True:
-            return True
-        else:
-            return False
 
     ## Documentation for CheckMaxTests method.
     #  @param self The object pointer.
@@ -387,10 +425,10 @@ def LoopAndLog():
 
     for testCounter in range(1, MAX_TEST+1):
         print "Test Number :",testCounter
-        MESSAGE_PING = '1,' + str(AMP) + ',' + str(FREQ) + '\r'
+        MESSAGE_PING = '2,' + str(fAMP) + ',' + str(FREQ) + '\r'
 
-        EngineResults = [False,False]
-        EngineResults = SamplingTest.RunTest()
+        EngineResults = [False,False,False,False,False,False]
+        EngineResults = mySamplingTest.RunTest()
         print "pulseResults = " + str(EngineResults)
         Channel1result = EngineResults[0]
         Channel2result = EngineResults[1]
@@ -442,16 +480,27 @@ def main():
     global MESSAGE_PING     #String Command to be sent to the controller
 
     #Temp variables
-    fVrefDAC    = 3300    #Voltage reference used in the controller DAC in mV
-    fGain       = 0.17    #Gain value of the ADC
-    fDacVal     = 0.0     #DAC Voltage
-    fDACValSum  = 0.0     #DAC Sum value
-    fDACValMean = 0.0     #DAC Mean value
-    iSampleDAC  = 1       #Current sample used in DAC
-    iMaxSamples = 100     #Number of samples used by DAC
-    fOffsetDC   = 0.43    #DC offset value in terms of Controller DAC output
-    BitRes      = 0.59 #Bit resolution of the DUT ADC in mV = 0.59 
-    iADCmean    = 0       #Expected Mean Value for ADC 
+    TestBegin = True
+    iADCmean    = 60       #Expected Mean Value for ADC 
+    iADCpeakMin = 40       #Expected Maximum peak Value for ADC
+    iADCpeakMax = 80       #Expected Maximum peak Value for ADC 
+    #Define Tolerance dictionaries--------
+    ADCMeanLimits = {
+        'Max': iADCmean + 20,
+        'Min': iADCmean - 20
+    }
+
+    ADCMinLimits = {
+        'Max': iADCpeakMin + 20,
+        'Min': iADCpeakMin - 20
+    }
+
+    ADCMaxLimits = {
+        'Max': iADCpeakMax + 20,
+        'Min': iADCpeakMax - 20
+    }
+    #------------------------------------
+
 
     #Create the needed class instances
     myInputs = InputParse()
@@ -468,8 +517,8 @@ def main():
     
     #LoopAndLog()
     #Debug and Trace Section-------------
-    #myConnector.openSerialPortDUT()
-    #myConnector.openSerialPortCON()
+    myConnector.openSerialPortDUT()
+    myConnector.openSerialPortCON()
     #channel1_data = myConnector.ReadSerialPortLineDUT()
     #channel2_data = myConnector.ReadSerialPortLineDUT()
     #print "DUT OK"
@@ -490,15 +539,10 @@ def main():
     #myConnector.CloseSerialPortCON()
     #myConnector.CloseSerialPortDUT()
 
-    fDacVal = fAMP*math.sin(75*((2*math.pi)/iMaxSamples)) + fOffsetDC   #The lowest value from the DAC in DAC units
-    fVoltMean = fVoltPkMin*fVrefDAC                                    #Convert DAC values to voltage in mV 
-    iADCpeakMin  = fVoltMean*fGain/BitRes                               #Convert the mean value in voltage to DUT comparable ADC value 
+    MESSAGE_PING = '2,' + str(fAMP) + ',' + str(FREQ) + '\r'
+    EngineResults = [False,False,False,False,False,False]
+    EngineResults = mySamplingTest.RunTest()
 
-    #Debug Trace---------------------------------------------
-    print "Min Value from DAC:   " + str(fDacVal)
-    print "Min Value in mV:      " + str(fVoltMean)
-    print "Min Value in ADC Val: " + str(fVoltMean)
-    #-------------------------------------------------------
     #------------------------------------
 
 
