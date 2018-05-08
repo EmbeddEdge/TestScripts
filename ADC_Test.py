@@ -221,7 +221,7 @@ class SamplingTest(object):
         #Extract readings from the DUT Serial port------------------------------------- 
         #Read DUT data
         print "Wait for DUT result"
-        received_data = myConnector.ReadSerialPortLineDUT()
+        received_data = myConnector.ReadSerialPortLineDUT().rstrip()
         Header1,ADC_Channel1,ADC_Mean1,ADC_Min1,ADC_Max1=received_data.split(",")
         ADC_Max1 = ADC_Max1.rstrip()
         #time.sleep(1)
@@ -230,15 +230,15 @@ class SamplingTest(object):
         ADC_Max2 = ADC_Max2.rstrip()
         #Debug Trace---------------------------------------------
         #print "Header = " + str(Header1)
-        print "ADC Channel = " + str(ADC_Channel1)
-        print "ADC Average Count = " + str(ADC_Mean1)
-        print "ADC Minimum Count = " + str(ADC_Min1)
-        print "ADC Maximum Count = " + str(ADC_Max1)
+        #print "ADC Channel = " + str(ADC_Channel1)
+        #print "ADC Average Count = " + str(ADC_Mean1)
+        #print "ADC Minimum Count = " + str(ADC_Min1)
+        #print "ADC Maximum Count = " + str(ADC_Max1)
         #print "Header = " + str(Header2)
-        print "ADC Channel = " + str(ADC_Channel2)
-        print "ADC Average Count = " + str(ADC_Mean2)
-        print "ADC Minimum Count = " + str(ADC_Min2)
-        print "ADC Maximum Count = " + str(ADC_Max2)
+        #print "ADC Channel = " + str(ADC_Channel2)
+        #print "ADC Average Count = " + str(ADC_Mean2)
+        #print "ADC Minimum Count = " + str(ADC_Min2)
+        #print "ADC Maximum Count = " + str(ADC_Max2)
         #-------------------------------------------------------
         #----------------------------------------------------------------------------
 
@@ -257,7 +257,7 @@ class SamplingTest(object):
         #Debug Trace-------------------------------------------------------------
         #print "Average Value from DAC:                      " + str(fDACValMean)    
         #print "Average mV Value from DAC:                   " + str(fVoltMean) 
-        print "Expected Average Voltage Value from DUT ADC: " + str(iADCmean)
+        #print "Expected Average Voltage Value from DUT ADC: " + str(iADCmean)
         #------------------------------------------------------------------------
 
         #-----------------------------------------------------------------------------------------------------------------------------------
@@ -271,7 +271,7 @@ class SamplingTest(object):
         #Debug Trace-------------------------------------------------
         #print "Min Value from DAC:   " + str(fDacVal)
         #print "Min Value in mV:      " + str(fVoltPkMin)
-        print "Expected Min Value in ADC Val: " + str(iADCpeakMin)
+        #print "Expected Min Value in ADC Val: " + str(iADCpeakMin)
         #-------------------------------------------------------------
         #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -284,7 +284,7 @@ class SamplingTest(object):
         #Debug Trace--------------------------------------
         #print "Max Value from DAC:   " + str(fDacVal)
         #print "Max Value in mV:      " + str(fVoltPkMax)
-        print "Expected Max Value in ADC Val: " + str(iADCpeakMax)
+        #print "Expected Max Value in ADC Val: " + str(iADCpeakMax)
         #-------------------------------------------------
         #-----------------------------------------------------------------------------------------------------------------------------------
 
@@ -357,22 +357,20 @@ class SamplingTest(object):
             passChannel2 = False
         #-----------------------------------------------------------------------------
 
+        ADCChannelsResults = [passChannel1,passChannel2]
+
         #Debug Trace----------------------------------------------------
-        print "Channel 1 mean value pass state: " + str(passADC1mean)
-        print "Channel 1 min value pass state:  " + str(passADC1min)
-        print "Channel 1 max value pass state:  " + str(passADC1max)
-        print "Channel 2 mean value pass state: " + str(passADC2mean)
-        print "Channel 2 min value pass state:  " + str(passADC2min)
-        print "Channel 2 max value pass state:  " + str(passADC2max)
-        print "Channel 1 pass state:            " + str(passChannel1)
-        print "Channel 2 pass state:            " + str(passChannel2)
+        #print "Channel 1 mean value pass state: " + str(passADC1mean)
+        #print "Channel 1 min value pass state:  " + str(passADC1min)
+        #print "Channel 1 max value pass state:  " + str(passADC1max)
+        #print "Channel 2 mean value pass state: " + str(passADC2mean)
+        #print "Channel 2 min value pass state:  " + str(passADC2min)
+        #print "Channel 2 max value pass state:  " + str(passADC2max)
+        #print "Channel 1 pass state:            " + str(passChannel1)
+        #print "Channel 2 pass state:            " + str(passChannel2)
+        #print ADCChannelsResults
         #--------------------------------------------------------------
         #------------------------------------------------------------------------
-
-
-
-        ADCChannelsResults = [passChannel1,passChannel2]
-        #print ADCChannelsResults
         
         #Return the results
         return ADCChannelsResults
@@ -426,16 +424,23 @@ def LoopAndLog():
     #Flags
     TestBegin = True
 
+    #Create and configure the log file-----------------------------------------------------------------------------------------------
     LOGFILENAME = 'SamplingEngine_Results.log'
     logging.basicConfig(filename=LOGFILENAME,level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%d/%m/%Y %I:%M:%S %p')
     logging.info('Tests Started - Device COM port %s', DUT_PORT)
+    #--------------------------------------------------------------------------------------------------------------------------------
 
+    #Configure the time interval between tests and the maximum amount of tests to run-
     TEST_WAIT_PERIOD_SECONDS = mySamplingTest.CheckInterval()
     MAX_TEST = mySamplingTest.CheckMaxTests()
+    #---------------------------------------------------------------------------------
 
+    #Open the serial ports----------
     myConnector.openSerialPortCON()
     myConnector.openSerialPortDUT()
+    #-------------------------------
 
+    #Continously run through tests until max number of tests have been reached-----------------------------
     for testCounter in range(1, MAX_TEST+1):
         print "Test Number :",testCounter
         MESSAGE_PING = '2,' + str(fAMP) + ',' + str(FREQ) + '\r'
@@ -456,7 +461,7 @@ def LoopAndLog():
 
         EngineResults = [False,False]
         EngineResults = mySamplingTest.RunTest()
-        print "Sampling Engine Results = " + str(EngineResults)
+        #print "Sampling Engine Results = " + str(EngineResults)
         Channel1result = EngineResults[0]
         Channel2result = EngineResults[1]
         if Channel1result == True :
@@ -479,11 +484,13 @@ def LoopAndLog():
             logging.info('Test %d, Failed,%d', testCounter, SuccessStatChannel2)
         
         time.sleep(TEST_WAIT_PERIOD_SECONDS)
-        
-    #Close Serial Ports
+    #--------------------------------------------------------------------------------------------------------    
+    
+    #Close Serial Ports and end-------
     myConnector.CloseSerialPortCON()
     myConnector.CloseSerialPortDUT()
     logging.info('Finished')
+    #--------------------------------
 
 ## Documentation for a function.
 #
@@ -500,34 +507,12 @@ def main():
     global fVrefCON         #Reference voltage for the DAC on the controller = 3.5
     global BitRes           #Bit resolution of the DUT ADC in mV = 0.59
     global FREQ             #Frequency of the input wave in Hz
-    #global NUM_PULSES
     global myInputs         #Name for instance of InputParse object
     global myConnector      #Name for instance of SerialConnecter object
     global mySamplingTest   #Name for instance of SamplingTest object
     global MESSAGE_PING     #String Command to be sent to the controller
 
     #Temp variables
-    TestBegin = True
-    iADCmean    = 60       #Expected Mean Value for ADC 
-    iADCpeakMin = 40       #Expected Maximum peak Value for ADC
-    iADCpeakMax = 80       #Expected Maximum peak Value for ADC 
-    #Define Tolerance dictionaries--------
-    ADCMeanLimits = {
-        'Max': iADCmean + 20,
-        'Min': iADCmean - 20
-    }
-
-    ADCMinLimits = {
-        'Max': iADCpeakMin + 20,
-        'Min': iADCpeakMin - 20
-    }
-
-    ADCMaxLimits = {
-        'Max': iADCpeakMax + 20,
-        'Min': iADCpeakMax - 20
-    }
-    #------------------------------------
-
 
     #Create the needed class instances
     myInputs = InputParse()
@@ -544,32 +529,6 @@ def main():
     
     LoopAndLog()
     #Debug and Trace Section-------------
-    #myConnector.openSerialPortDUT()
-    #myConnector.openSerialPortCON()
-    #channel1_data = myConnector.ReadSerialPortLineDUT()
-    #channel2_data = myConnector.ReadSerialPortLineDUT()
-    #print "DUT OK"
-    #Header1,ADC_Channel1,ADC_Average1,ADC_Min1,ADC_Max1=channel1_data.split(",")
-    #ADC_Max1 = ADC_Max1.rstrip()
-    #print "Header = " + str(Header1)
-    #print "ADC Channel = " + str(ADC_Channel1)
-    #print "ADC Average Count = " + str(ADC_Average1)
-    #print "ADC Minimum Count = " + str(ADC_Min1)
-    #print "ADC Maximum Count = " + str(ADC_Max1)
-    #Header2,ADC_Channel2,ADC_Average2,ADC_Min2,ADC_Max2=channel2_data.split(",")
-    #ADC_Max2 = ADC_Max2.rstrip()
-    #print "Header = " + str(Header2)
-    #print "ADC Channel = " + str(ADC_Channel2)
-    #print "ADC Average Count = " + str(ADC_Average2)
-    #print "ADC Minimum Count = " + str(ADC_Min2)
-    #print "ADC Maximum Count = " + str(ADC_Max2)
-    #myConnector.CloseSerialPortCON()
-    #myConnector.CloseSerialPortDUT()
-
-    #MESSAGE_PING = '2,' + str(fAMP) + ',' + str(FREQ) + '\r'
-    #EngineResults = [False,False]
-    #EngineResults = mySamplingTest.RunTest()
-
     #------------------------------------
 
 
