@@ -41,11 +41,6 @@ class Frequencies(Enum):
     Max = 110
     Min = 1
 
-#class ADCaverageLimits(Enum):
-#    Max = What
-#    Min = Waht
-
-
 ## Documentation for the InputParse class.
 #
 #  This class defines the methods used to provide modem functionality
