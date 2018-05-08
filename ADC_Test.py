@@ -7,12 +7,12 @@
 #
 # Date Last Modified: 08 May 2018
 #
-# Latest change: Completed computation for expected results and evaluation for pass/fail. Data structures and organization needs work. Still need to format final pass fail criteria.
-#                Also need to restructure the loop system for running through iterative tests so that controller commmand is not sent every iteration. 
+# Latest change: First Operating version of the script. Still needs cleaning up with passing parameters and variables. The script cannot reset the controller after each round of testing.
+#                The controller needs to be manually reset. Controller FW needs update to fix this.
 #
 # Purpose: A script to validate a devices ability to accurately sample and measure a sine wave input
 #
-# Version : V0.2
+# Version : V1.0
 #
 #  More details.
 #
@@ -30,8 +30,8 @@ import time
 import math
 
 
-MAJOR = 0
-MINOR = 2
+MAJOR = 1
+MINOR = 0
 
 class Amplitudes(Enum):
     Max = 0.43
