@@ -53,7 +53,7 @@ class InputParse(object):
     
     ## The constructor.
     def __init__(self):
-        print "InputParse Initialised"
+        print ("InputParse Initialised")
 
     ## Documentation for the GetInput method.
     #
@@ -98,24 +98,24 @@ class SerialConnecter(object):
     
     ## The constructor.
     def __init__(self):
-        print "SerialConnecter Initialised"
+        print ("SerialConnecter Initialised")
 
     ## Documentation for openSerialPortCON method.
     #  @param self The object pointer.
     def openSerialPortCON(self):
         self.ser1 = serial.Serial(uC_PORT, uC_BAUD, timeout=10)
-        print "Controller Serial Port: Open" 
+        print ("Controller Serial Port: Open") 
 
     ## Documentation for openSerialPortDUT method.
     #  @param self The object pointer.
     def openSerialPortDUT(self):
         self.ser2 = serial.Serial(DUT_PORT, DUT_BAUD, timeout=10)
-        print "DUT Serial Port: Open" 
+        print ("DUT Serial Port: Open") 
 
     ## Documentation for SendSerialCON method.
     #  @param self The object pointer.
     def SendSerialCON(self,command, getline=False):
-        print "Controller Serial Port Tx: ", command
+        print ("Controller Serial Port Tx: ", command)
         self.ser1.write(command)
         data = ''
         if getline:
@@ -125,7 +125,7 @@ class SerialConnecter(object):
     ## Documentation for SendSerialDUT method.
     #  @param self The object pointer.
     def SendSerialDUT(self,command, getline=False):
-        print "DUT Serial Port Tx: ", command
+        print ("DUT Serial Port Tx: ", command)
         self.ser2.write(command)
         data = ''
         if getline:
@@ -136,27 +136,27 @@ class SerialConnecter(object):
     #  @param self The object pointer.
     def ReadSerialPortLineCON(self):
         data = self.ser1.readline()
-        print "Controller Serial Port Rx: ", data
+        print ("Controller Serial Port Rx: ", data)
         return data
 
     ## Documentation for ReadSerialPortLineDUT method.
     #  @param self The object pointer.
     def ReadSerialPortLineDUT(self):
         data = self.ser2.readline()
-        print "DUT Serial Port Rx: ", data
+        print ("DUT Serial Port Rx: ", data)
         return data    
 
     ## Documentation for CloseSerialPortCON method.
     #  @param self The object pointer.
     def CloseSerialPortCON(self):
         self.ser1.close()
-        print "Controller Serial Port: Closed"
+        print ("Controller Serial Port: Closed")
 
     ## Documentation for CloseSerialPortDUT method.
     #  @param self The object pointer.
     def CloseSerialPortDUT(self):
         self.ser2.close()
-        print "DUT Serial Port: Closed"
+        print ("DUT Serial Port: Closed")
 
 ## Documentation for the SamplingTest class.
 #
@@ -165,7 +165,7 @@ class SamplingTest(object):
 
     ## The constructor.
     def __init__(self):
-        print "SamplingTest Initialised"
+        print ("SamplingTest Initialised")
 
     ## Documentation for RunTest method.
     #
@@ -220,7 +220,7 @@ class SamplingTest(object):
 
         #Extract readings from the DUT Serial port------------------------------------- 
         #Read DUT data
-        print "Wait for DUT result"
+        print ("Wait for DUT result")
         received_data = myConnector.ReadSerialPortLineDUT().rstrip()
         Header1,ADC_Channel1,ADC_Mean1,ADC_Min1,ADC_Max1=received_data.split(",")
         ADC_Max1 = ADC_Max1.rstrip()
@@ -442,7 +442,7 @@ def LoopAndLog():
 
     #Continously run through tests until max number of tests have been reached-----------------------------
     for testCounter in range(1, MAX_TEST+1):
-        print "Test Number :",testCounter
+        print ("Test Number :",testCounter)
         MESSAGE_PING = '2,' + str(fAMP) + ',' + str(FREQ) + '\r'
 
         #Wait for DUT and then trigger the controller------------------------------------------------- 
@@ -452,7 +452,7 @@ def LoopAndLog():
         if TestBegin == True:
             received_data = myConnector.ReadSerialPortLineDUT()
             received_data = myConnector.ReadSerialPortLineDUT() #run twice for both incoming lines
-            print "The DUT is Ready"
+            print ("The DUT is Ready")
             myConnector.SendSerialCON(MESSAGE_PING)
             myConnector.ReadSerialPortLineCON()            #Check that the command ran
             TestBegin = False
@@ -467,20 +467,20 @@ def LoopAndLog():
         if Channel1result == True :
             PassCounterChannel1 += 1
             SuccessStatChannel1 = 100.0 * PassCounterChannel1 / testCounter
-            print "Expected response received. Channel 1 Test Passed: ", SuccessStatChannel1
+            print ("Expected response received. Channel 1 Test Passed: ", SuccessStatChannel1)
             logging.info('Test %d,Passed,%d', testCounter, SuccessStatChannel1)
         else:
             SuccessStatChannel1 = 100.0 * PassCounterChannel1 / testCounter
-            print"Expected response Not received. Channel 1 Test Failed: ", SuccessStatChannel1
+            print("Expected response Not received. Channel 1 Test Failed: ", SuccessStatChannel1)
             logging.info('Test %d, Failed,%d', testCounter, SuccessStatChannel1)
         if Channel2result == True :
             PassCounterChannel2 += 1
             SuccessStatChannel2 = 100.0 * PassCounterChannel2 / testCounter
-            print "Expected response received. Channel 2 Test Passed: ", SuccessStatChannel2
+            print ("Expected response received. Channel 2 Test Passed: ", SuccessStatChannel2)
             logging.info('Test %d,Passed,%d', testCounter, SuccessStatChannel2)
         else:
             SuccessStatChannel2 = 100.0 * PassCounterChannel2 / testCounter
-            print"Expected response Not received. Channel 2 Test Failed: ", SuccessStatChannel2
+            print("Expected response Not received. Channel 2 Test Failed: ", SuccessStatChannel2)
             logging.info('Test %d, Failed,%d', testCounter, SuccessStatChannel2)
         
         time.sleep(TEST_WAIT_PERIOD_SECONDS)
@@ -522,7 +522,7 @@ def main():
     #Initialize variables from input parameters
     [DUT_PORT, DUT_BAUD, uC_PORT, uC_BAUD, fAMP, FREQ] = myInputs.GetInput()
 
-    print "\nDUT Sampling Engine Test"
+    print ("\nDUT Sampling Engine Test")
     print 'DUT'+' Serial Port '+str(DUT_PORT)
     print 'Controller'+' Serial Port '+str(uC_PORT)
     print "Sampling Engine Test version: V" + str(MAJOR) + '.' + str(MINOR)
